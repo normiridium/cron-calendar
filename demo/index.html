@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -76,6 +76,17 @@
       (<code>0 0 31 2 *</code>). Жёлтый — не бывает в части месяцев.
       <button class="reset" data-set="0 0 31 2 *">показать красный</button>
       <button class="reset" data-set="0 0 31 2,7 *">жёлтый</button></div>
+  </div>
+
+  <h2>Локализация: locale="en" (названия — из Intl, неделя — из CLDR)</h2>
+  <div class="row">
+    <div class="wide">
+      <cron-editor id="en" locale="en" week-start="auto" value="0 0 31 2,7 *"></cron-editor>
+      <output id="out-en">неделя с воскресенья (en-US по CLDR), подписи и подсказки по-английски</output>
+    </div>
+    <div class="hint">Названия месяцев и дней приходят из <code>Intl.DateTimeFormat</code>, первый день недели —
+      из <code>Intl.Locale.weekInfo</code> при <code>week-start="auto"</code>. Незнакомый язык всё равно получает свои
+      названия, а фразы — английские.</div>
   </div>
 
   <h2>Перечисление на ничьей — флаг компонента</h2>

@@ -68,7 +68,8 @@ All behaviour is switched by attributes or properties — no checkboxes in the m
 |---|---|---|---|
 | `mode` | `el.mode` | `always` | `always` — grid is visible; `popover` — the component renders its own input and drops the grid down on focus |
 | `fields` | — | `min,hour,dom,month,dow` | subset of fields to render, e.g. `fields="min,hour"` |
-| `week-start` | `el.weekStart` | `sun` | `sun` — 4 columns, rows 4+3; `mon` — 5 columns, weekdays 5 + weekend 2 |
+| `week-start` | `el.weekStart` | `sun` | `sun` — 4 columns, rows 4+3; `mon` — 5 columns, weekdays 5 + weekend 2; `auto` — from CLDR for the current locale |
+| `locale` | `el.locale` | `<html lang>` → `navigator.language` | UI language: month/weekday names come from `Intl.DateTimeFormat`, field labels and tooltips from a two-entry message catalogue (`ru`, `en`) |
 | `enumeration` | `el.preferEnumeration` | on | on ties in token length the enumeration wins (`2,4,6,10`); `enumeration="off"` prefers the step form (`2-6/2,10`) |
 
 ```html
@@ -77,6 +78,31 @@ All behaviour is switched by attributes or properties — no checkboxes in the m
 
 `week-start` only changes the visual order: cron semantics stay intact, `0` is still
 Sunday, and clicking "Sun" in Monday mode appends `0`, not `7`.
+
+## Localization
+
+No translation files, no build step: names come from the platform.
+
+- **Month and weekday names** — `Intl.DateTimeFormat(locale, { month|weekday: 'short'|'long' })`.
+  Any locale works out of the box (`de`, `fr`, `pl`, …); short forms are trimmed to three
+  characters so cells keep their width (`янв`, `фев`, …), full names are used in tooltips.
+- **Field labels and tooltip sentences** — `Intl` has no API for these, so they live in a tiny
+  `MESSAGES` catalogue with `ru` and `en`. An unknown language keeps its own month names and
+  falls back to English phrases.
+- **First day of the week** — `week-start="auto"` reads CLDR through
+  `Intl.Locale#getWeekInfo()` (falling back to `weekInfo`): `ru` → Monday, `en-US` → Sunday.
+  The default stays an explicit `sun` so behaviour never changes silently.
+- **Default locale** — the `locale` attribute, otherwise the nearest `<html lang>`, otherwise
+  `navigator.language`.
+
+```html
+<cron-editor locale="en" week-start="auto" value="0 0 31 2 *"></cron-editor>
+<!-- labels: minute / hour / day / month / day of week
+     months: Jan … Dec, weekdays: Sun … Sat, tooltip: "31st never exists in the selected months" -->
+```
+
+Adding a language = one entry in `MESSAGES` (labels + four hint templates). Month and weekday
+names need no work at all.
 
 ## How the expression is folded
 
@@ -145,8 +171,8 @@ block width is defined by its cells only — so `minute(12) + hour(6)` and
 ## Demo
 
 Open `demo/index.html` directly from disk (`file://`) — no server needed. It shows the
-default layout, Monday-first week with the popover, date validation and the enumeration
-flag.
+default layout, Monday-first week with the popover, date validation, the enumeration flag
+and `locale="en"` with `week-start="auto"`.
 
 ## Tests
 
@@ -156,7 +182,8 @@ npm test          # node --test test/*.test.js
 
 No test dependencies: `node:test` plus property tests over the formatter and parser
 (canonical token table, tie-breaking, "never longer than enumeration", round-trip
-`parse(format(x)) === x` on thousands of random sets).
+`parse(format(x)) === x` on thousands of random sets), and locale tests (`Intl` names,
+CLDR week start, catalogue completeness, ordinal forms).
 
 ## Browser support
 
