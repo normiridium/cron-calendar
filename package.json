@@ -1,0 +1,25 @@
+{
+  "name": "cron-calendar",
+  "version": "0.1.0",
+  "description": "Dependency-free <cron-editor> web component: calendar-style visual editor for cron expressions",
+  "type": "commonjs",
+  "main": "src/cron-editor.js",
+  "files": [
+    "src/cron-editor.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "cron",
+    "cron-editor",
+    "web-component",
+    "custom-element",
+    "scheduler",
+    "no-dependencies"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
