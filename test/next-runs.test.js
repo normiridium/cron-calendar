@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { nextRuns, zoneOffsetMs, formatRun, normalizeRunFormat, RUN_SEPARATOR } = require('../src/cron-editor.js');
+const { nextRuns, zoneOffsetMs, formatRun, formatRuns, normalizeRunFormat, RUN_SEPARATOR } = require('../src/cron-editor.js');
 
 const at = (iso) => new Date(iso);
 const fmt = (list, timeZone) => list.map((date) => {
@@ -114,4 +114,26 @@ test('перечисление запусков: запятая и широки�
   const line = runs.map((run) => formatRun(run, 'ru', 'Europe/Moscow')).join(RUN_SEPARATOR);
   assert.equal(line, '18 ноября\u200209:00,\u200219 ноября\u200209:00,\u200220 ноября\u200209:00');
   assert.equal(line.split(RUN_SEPARATOR).length, 3);
+});
+
+test('ежегодное расписание: строки не повторяются, добавляется год', () => {
+  const runs = nextRuns('0 10 26 9 *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+  const texts = formatRuns(runs, 'ru', 'Europe/Moscow');
+  assert.equal(texts.length, 3, 'три разных запуска, а не три одинаковые строки');
+  assert.equal(new Set(texts).size, 3);
+  assert.equal(texts[0], '26 сентября 2027\u200210:00');
+  assert.equal(texts[2], '26 сентября 2029\u200210:00');
+});
+
+test('частые запуски год не получают', () => {
+  const runs = nextRuns('0 9 * * *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+  const texts = formatRuns(runs, 'ru', 'Europe/Moscow');
+  assert.deepEqual(texts, ['18 ноября\u200209:00', '19 ноября\u200209:00', '20 ноября\u200209:00']);
+  texts.forEach((text) => assert.ok(!/20\d{2}/.test(text), 'года в строке нет'));
+});
+
+test('строки, которые всё равно совпали, схлопываются', () => {
+  const runs = nextRuns('0 10 * * *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+  const onlyTime = formatRuns(runs, 'ru', 'Europe/Moscow', 'time');
+  assert.deepEqual(onlyTime, ['10:00'], 'три одинаковых «10:00» дают одну строку');
 });
