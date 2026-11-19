@@ -116,13 +116,23 @@ test('перечисление запусков: запятая и широки�
   assert.equal(line.split(RUN_SEPARATOR).length, 3);
 });
 
-test('ежегодное расписание: строки не повторяются, добавляется год', () => {
-  const runs = nextRuns('0 10 26 9 *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+test('ежегодное расписание показываем один раз, без года', () => {
+  const runs = nextRuns('0 10 21 3 *', { from: new Date('2026-11-19T05:00:00Z'), count: 5, timeZone: 'Europe/Moscow' });
   const texts = formatRuns(runs, 'ru', 'Europe/Moscow');
-  assert.equal(texts.length, 3, 'три разных запуска, а не три одинаковые строки');
-  assert.equal(new Set(texts).size, 3);
-  assert.equal(texts[0], '26 сентября 2027\u200210:00');
-  assert.equal(texts[2], '26 сентября 2029\u200210:00');
+  assert.deepEqual(texts, ['21 марта\u200210:00'], 'один повтор вместо пяти строк с годами');
+});
+
+test('год появляется только при переходе через новый год', () => {
+  const runs = nextRuns('0 10 1 3,12 *', { from: new Date('2026-11-19T05:00:00Z'), count: 5, timeZone: 'Europe/Moscow' });
+  const texts = formatRuns(runs, 'ru', 'Europe/Moscow');
+  assert.deepEqual(texts, ['1 декабря\u200210:00', '1 марта 2027\u200210:00'],
+    'после декабря март уже другого года — там уточнение уместно');
+});
+
+test('в пределах одного года года в строке нет', () => {
+  const runs = nextRuns('0 10 1 3 *', { from: new Date('2026-11-19T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+  const texts = formatRuns(runs, 'ru', 'Europe/Moscow');
+  assert.deepEqual(texts, ['1 марта\u200210:00']);
 });
 
 test('частые запуски год не получают', () => {
