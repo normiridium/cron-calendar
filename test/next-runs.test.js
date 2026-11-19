@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { nextRuns, zoneOffsetMs, formatRun } = require('../src/cron-editor.js');
+const { nextRuns, zoneOffsetMs, formatRun, normalizeRunFormat } = require('../src/cron-editor.js');
 
 const at = (iso) => new Date(iso);
 const fmt = (list, timeZone) => list.map((date) => {
@@ -65,30 +65,43 @@ test('пустое выражение и неизвестный токен не 
   assert.deepEqual(nextRuns('0 0 JAN * *', { count: 2 }), []);
 });
 
-test('строка запуска: полное название месяца и без запятой перед временем', () => {
+test('строка запуска: по умолчанию без дня недели, полный месяц, без запятой перед временем', () => {
   const run = new Date('2026-11-20T06:30:00Z'); // пятница, 09:30 МСК
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow'), '20 ноября в 09:30');
+  assert.equal(formatRun(run, 'en', 'Europe/Moscow'), 'November 20 at 09:30');
+  assert.equal(formatRun(run, 'de', 'Europe/Moscow'), '20. November um 09:30');
   const ru = formatRun(run, 'ru', 'Europe/Moscow');
-  const en = formatRun(run, 'en', 'Europe/Moscow');
-  assert.equal(ru, 'пт, 20 ноября в 09:30');
-  assert.equal(en, 'Fri, November 20 at 09:30');
-  [ru, en].forEach((text) => {
-    assert.ok(!text.includes('нояб.'), 'месяц полный, без сокращения');
-    assert.ok(!/,\s*\d{2}:\d{2}/.test(text), 'перед временем нет запятой');
-    assert.match(text, /\d{2}:\d{2}$/);
-  });
-  assert.equal(formatRun(run, 'de', 'Europe/Moscow'), 'Fr., 20. November um 09:30');
+  assert.ok(!ru.includes('пт'), 'день недели не выводится');
+  assert.ok(!ru.includes('нояб.'), 'месяц полный');
+  assert.ok(!/,\s*\d{2}:\d{2}/.test(ru), 'перед временем нет запятой');
+});
+
+test('формат строки задаётся флагом run-format', () => {
+  const run = new Date('2026-11-20T06:30:00Z');
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'weekday day month time'), 'пт, 20 ноября в 09:30');
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'time'), '09:30');
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'day month'), '20 ноября');
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', ['day', 'month']), '20 ноября');
+  assert.deepEqual(normalizeRunFormat(''), ['day', 'month', 'time']);
+  assert.deepEqual(normalizeRunFormat('day month time'), ['day', 'month', 'time']);
+  assert.deepEqual(normalizeRunFormat('weekday day month time'), ['weekday', 'day', 'month', 'time']);
+  assert.deepEqual(normalizeRunFormat('time day'), ['time', 'day']);
+  assert.deepEqual(normalizeRunFormat('мусор'), ['day', 'month', 'time'], 'неизвестные токены игнорируются');
 });
 
 test('строка запуска: широкий пробел между датой и временем, обычный — между днём и месяцем', () => {
   const run = new Date('2026-11-20T06:30:00Z');
-  // pl/es/tr/zh: Intl не ставит слово-связку — там широкий пробел U+2002
-  ['pl', 'es', 'tr', 'zh'].forEach((locale) => {
+  ['pl', 'es', 'tr'].forEach((locale) => {
     const text = formatRun(run, locale, 'Europe/Moscow');
     assert.ok(text.includes('\u2002'), `${locale}: ожидался широкий пробел, получено ${JSON.stringify(text)}`);
     assert.ok(!/,\s*\d{2}:\d{2}$/.test(text.replace(/\u2002/g, ' ')), `${locale}: запятая перед временем`);
   });
-  // ru/de/en: связка словом («в», «um», «at») — обычные пробелы, месяц отделён обычным
+  // zh: «日» — суффикс дня, он липнет к числу, перед временем обычный пробел
+  const zh = formatRun(run, 'zh', 'Europe/Moscow');
+  assert.match(zh, /20日\s?\d{2}:\d{2}$/, `zh: ${JSON.stringify(zh)}`);
+  assert.ok(!zh.includes(' 日'), 'суффикс 日 не отделяется пробелом');
+
   const ru = formatRun(run, 'ru', 'Europe/Moscow');
-  assert.ok(!ru.includes('\u2002'));
+  assert.ok(!ru.includes('\u2002'), 'в ru есть слово-связка «в», широкий пробел не нужен');
   assert.match(ru, /20 ноября в \d{2}:\d{2}$/);
 });

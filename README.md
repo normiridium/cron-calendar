@@ -72,6 +72,7 @@ All behaviour is switched by attributes or properties — no checkboxes in the m
 | `locale` | `el.locale` | `<html lang>` → `navigator.language` | UI language: month/weekday names come from `Intl.DateTimeFormat`, labels and tooltips from the built-in message catalogue (10 languages) |
 | `next-runs` | `el.nextRuns` | off | number of upcoming runs to list under the grid (`next-runs` = 5, `next-runs="8"` = eight); `0` or no attribute hides the list |
 | `timezone` | `el.timeZone` | browser zone | IANA zone for computing and printing runs, e.g. `Europe/Moscow` |
+| `run-format` | `el.runFormat` | `day month time` | which parts a run line contains: `weekday`, `day`, `month`, `year`, `time` |
 | `enumeration` | `el.preferEnumeration` | on | on ties in token length the enumeration wins (`2,4,6,10`); `enumeration="off"` prefers the step form (`2-6/2,10`) |
 
 ```html
@@ -117,8 +118,17 @@ day-of-week are restricted, a match on **either** counts, same as `robfig/cron`)
 
 ```html
 <cron-editor next-runs="5" timezone="Europe/Moscow" value="30 9 * * 1-5"></cron-editor>
-<!-- Следующие запуски: пт, 20 нояб., 09:30 · пн, 23 нояб., 09:30 … -->
+<!-- Следующие запуски: 20 ноября в 09:30 · 23 ноября в 09:30 … -->
+
+<cron-editor next-runs="3" timezone="Europe/Moscow" run-format="weekday day month time" …></cron-editor>
+<!-- пт, 20 ноября в 09:30 — день недели возвращается флагом run-format -->
 ```
+
+`run-format` собирает строку из частей: `weekday`, `day`, `month`, `year`, `time` (по умолчанию
+`day month time`; `time` — только время; неизвестные токены игнорируются). Месяц печатается
+полностью (`20 ноября`), на стыке «дата → время» стоит широкий пробел U+2002, между днём и
+месяцем — обычный; запятая перед временем не ставится. Если Intl сам вставляет слово-связку
+(`в`, `at`, `um`, `日`), она остаётся с обычными пробелами.
 
 - the list is recomputed on every edit, and only when the expression changes something;
 - `timezone` controls both the calculation and the printed time (via `Intl.DateTimeFormat`);

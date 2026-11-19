@@ -96,11 +96,14 @@
   <div class="row">
     <div class="wide">
       <cron-editor id="runs" next-runs="6" timezone="Europe/Moscow" value="30 9 * * 1-5"></cron-editor>
-      <output id="out-runs">запуски считаются в Europe/Moscow</output>
+      <cron-editor id="runs-full" next-runs="3" timezone="Europe/Moscow" run-format="weekday day month time"
+                   value="30 9 * * 1-5" style="margin-top:14px"></cron-editor>
+      <output id="out-runs">сверху run-format по умолчанию (без дня недели), снизу — с днём недели</output>
     </div>
     <div class="hint"><code>next-runs="6"</code> — сколько строк показать (по умолчанию 5),
-      <code>timezone</code> — IANA-зона для расчёта и подписи. Правило дня как в cron:
-      если ограничены и день месяца, и день недели — достаточно совпадения любого.</div>
+      <code>timezone</code> — IANA-зона для расчёта и подписи, <code>run-format</code> — состав строки:
+      <code>weekday</code>, <code>day</code>, <code>month</code>, <code>year</code>, <code>time</code>.
+      Правило дня как в cron: если ограничены и день месяца, и день недели — достаточно совпадения любого.</div>
   </div>
 
   <h2>Языки пакета: ru, en, de, fr, es, it, pt, pl, tr, zh</h2>

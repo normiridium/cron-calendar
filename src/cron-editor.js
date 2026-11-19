@@ -685,20 +685,41 @@
     return out;
   }
 
-  // formatRun печатает дату запуска: полное название месяца и БЕЗ запятой
-  // между датой и временем. Порядок частей оставляем такой, как решил Intl
-  // (в ru/en/de он разный), правим только разделитель в стыке дата→время.
-  function formatRun(date, locale, timeZone) {
+  // formatRun печатает дату запуска. Состав строки задаётся форматом:
+  //   'day', 'month', 'time', 'weekday', 'year'
+  // По умолчанию — 'day month time' (день недели не выводим: он лишний).
+  // Между датой и временем ставится широкий пробел (U+2002), между днём и
+  // месяцем — обычный; запятая на стыке дата→время не нужна.
+  const RUN_FORMAT_DEFAULT = ['day', 'month', 'time'];
+  const RUN_FORMAT_TOKENS = ['weekday', 'day', 'month', 'year', 'time'];
+
+  function normalizeRunFormat(value) {
+    if (value == null) {
+      return RUN_FORMAT_DEFAULT.slice();
+    }
+    const list = Array.isArray(value) ? value : String(value).split(/[\s,|]+/);
+    const picked = [];
+    list.forEach(function (token) {
+      const name = String(token || '').trim().toLowerCase();
+      if (RUN_FORMAT_TOKENS.indexOf(name) !== -1 && picked.indexOf(name) === -1) {
+        picked.push(name);
+      }
+    });
+    return picked.length ? picked : RUN_FORMAT_DEFAULT.slice();
+  }
+
+  function formatRun(date, locale, timeZone, format) {
+    const wanted = normalizeRunFormat(format);
+    const takes = function (type) {
+      if (type === 'hour' || type === 'minute' || type === 'second') {
+        return wanted.indexOf('time') !== -1;
+      }
+      return wanted.indexOf(type) !== -1;
+    };
+
     let formatter;
     try {
-      const options = {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-        hourCycle: 'h23'
-      };
+      const options = { weekday: 'short', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
       if (timeZone) {
         options.timeZone = timeZone;
       }
@@ -709,35 +730,46 @@
     if (!formatter) {
       return date.toISOString();
     }
-    const parts = formatter.formatToParts(date);
+
     const dateTypes = ['weekday', 'year', 'month', 'day'];
-    const timeTypes = ['hour', 'minute', 'second'];
-    let lastDate = -1;
-    let firstTime = -1;
-    parts.forEach(function (part, index) {
-      if (dateTypes.indexOf(part.type) !== -1) {
-        lastDate = index;
-      }
-      if (firstTime === -1 && timeTypes.indexOf(part.type) !== -1) {
-        firstTime = index;
-      }
-    });
     const out = [];
-    parts.forEach(function (part, index) {
-      let value = part.value;
-      const inGap = part.type === 'literal' && lastDate !== -1 && firstTime !== -1 && index > lastDate && index < firstTime;
-      if (inGap) {
-        // Стык «дата → время»: запятая не нужна. Если Intl оставил здесь только
-        // разделитель, ставим широкий пробел (U+2002, en space) — по правилам
-        // набора дата и время отделяются им, а день и месяц — обычным пробелом.
-        const words = value.replace(/,/g, ' ').trim();
-        value = words === '' ? '\u2002' : ' ' + words + ' ';
+    let gap = '';
+    formatter.formatToParts(date).forEach(function (part) {
+      if (part.type === 'literal') {
+        gap += part.value;
+        return;
       }
-      out.push(value);
+      if (!takes(part.type)) {
+        gap = gap.replace(/,/g, '');
+        return;
+      }
+      if (out.length) {
+        out.push({ type: 'literal', value: gap });
+      }
+      gap = '';
+      out.push({ type: part.type, value: part.value });
     });
-    const text = out.join('');
-    // Сжимаем только ОБЫЧНЫЕ пробелы: широкий U+2002 не трогаем.
-    return text.replace(/ {2,}/g, ' ').replace(/^\s+|\s+$/g, '');
+
+    // Разделители: на стыке «дата → время» — широкий пробел, остальное как есть.
+    for (let i = 0; i < out.length; i += 1) {
+      if (out[i].type !== 'literal') {
+        continue;
+      }
+      const before = out.slice(0, i).reverse().find(function (item) { return item.type !== 'literal'; });
+      const after = out.slice(i + 1).find(function (item) { return item.type !== 'literal'; });
+      const beforeDate = before && dateTypes.indexOf(before.type) !== -1;
+      const afterTime = after && (after.type === 'hour' || after.type === 'minute' || after.type === 'second');
+      if (beforeDate && afterTime) {
+        const raw = out[i].value;
+        // Если в стыке есть слово-связка («в», «at», «um», «日» как суффикс дня) —
+        // оставляем его и обычные пробелы, убирая только запятую. Чистый
+        // разделитель заменяем на широкий пробел.
+        out[i].value = /[^\s,]/.test(raw) ? raw.replace(/,/g, ' ') : '\u2002';
+      }
+    }
+
+    const text = out.map(function (item) { return item.value; }).join('');
+    return text.replace(/ {2,}/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
   }
 
   function splitExpression(expr, count) {
@@ -864,6 +896,23 @@
         return;
       }
       this.setAttribute('next-runs', String(Math.min(Math.floor(value), 20)));
+    }
+
+    // runFormat — из чего собирать строку запуска: weekday, day, month, year, time.
+    // Атрибут run-format="day month time" (по умолчанию), "time" — только время,
+    // "weekday day month time" — вернуть день недели.
+    get runFormat() {
+      const raw = this.getAttribute('run-format');
+      return normalizeRunFormat(raw == null ? null : raw);
+    }
+
+    set runFormat(next) {
+      if (next == null || next === '') {
+        this.removeAttribute('run-format');
+        return;
+      }
+      const list = normalizeRunFormat(next);
+      this.setAttribute('run-format', list.join(' '));
     }
 
     // timeZone — IANA-зона для расчёта и подписи запусков (например Europe/Moscow).
@@ -1424,7 +1473,7 @@
     }
 
     static get observedAttributes() {
-      return ['locale', 'week-start', 'mode', 'fields', 'enumeration', 'next-runs', 'timezone'];
+      return ['locale', 'week-start', 'mode', 'fields', 'enumeration', 'next-runs', 'timezone', 'run-format'];
     }
 
     attributeChangedCallback(name, previous, next) {
@@ -1435,7 +1484,7 @@
         this._syncUI();
         return;
       }
-      if (name === 'next-runs' || name === 'timezone') {
+      if (name === 'next-runs' || name === 'timezone' || name === 'run-format') {
         this._paintNextRuns();
         return;
       }
@@ -1489,12 +1538,13 @@
       }
 
       const locale = this.locale;
+      const format = this.runFormat;
 
       const list = document.createElement('ol');
       list.className = 'next-list';
       runs.forEach(function (run) {
         const item = document.createElement('li');
-        item.textContent = formatRun(run, locale, timeZone);
+        item.textContent = formatRun(run, locale, timeZone, format);
         list.appendChild(item);
       });
       box.appendChild(list);
@@ -1543,6 +1593,8 @@
       MESSAGES: MESSAGES,
       nextRuns: nextRuns,
       formatRun: formatRun,
+      normalizeRunFormat: normalizeRunFormat,
+      RUN_FORMAT_TOKENS: RUN_FORMAT_TOKENS,
       zoneOffsetMs: zoneOffsetMs,
       intlNames: intlNames,
       intlWeekStart: intlWeekStart,
