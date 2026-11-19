@@ -118,17 +118,19 @@ day-of-week are restricted, a match on **either** counts, same as `robfig/cron`)
 
 ```html
 <cron-editor next-runs="5" timezone="Europe/Moscow" value="30 9 * * 1-5"></cron-editor>
-<!-- Следующие запуски: 20 ноября в 09:30 · 23 ноября в 09:30 … -->
+<!-- Следующие запуски:
+     20 ноября 09:30, 23 ноября 09:30, 24 ноября 09:30, 25 ноября 09:30, 26 ноября 09:30 -->
 
 <cron-editor next-runs="3" timezone="Europe/Moscow" run-format="weekday day month time" …></cron-editor>
-<!-- пт, 20 ноября в 09:30 — день недели возвращается флагом run-format -->
+<!-- пт, 20 ноября 09:30, пн, 23 ноября 09:30 — день недели возвращается флагом run-format -->
 ```
 
 `run-format` собирает строку из частей: `weekday`, `day`, `month`, `year`, `time` (по умолчанию
 `day month time`; `time` — только время; неизвестные токены игнорируются). Месяц печатается
 полностью (`20 ноября`), на стыке «дата → время» стоит широкий пробел U+2002, между днём и
-месяцем — обычный; запятая перед временем не ставится. Если Intl сам вставляет слово-связку
-(`в`, `at`, `um`, `日`), она остаётся с обычными пробелами.
+месяцем — обычный. Предлоги, которые подставляет Intl (`в`, `at`, `um`, `à`), выбрасываются:
+строка остаётся «дата + пробел + время». Сохраняется только суффикс, приклеенный к числу
+(китайское `日`: `11月20日 09:30`). Запуски в списке перечисляются через запятую.
 
 - the list is recomputed on every edit, and only when the expression changes something;
 - `timezone` controls both the calculation and the printed time (via `Intl.DateTimeFormat`);

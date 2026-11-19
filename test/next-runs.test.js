@@ -65,20 +65,22 @@ test('пустое выражение и неизвестный токен не 
   assert.deepEqual(nextRuns('0 0 JAN * *', { count: 2 }), []);
 });
 
-test('строка запуска: по умолчанию без дня недели, полный месяц, без запятой перед временем', () => {
+test('строка запуска: по умолчанию без дня недели, полный месяц, без предлогов', () => {
   const run = new Date('2026-11-20T06:30:00Z'); // пятница, 09:30 МСК
-  assert.equal(formatRun(run, 'ru', 'Europe/Moscow'), '20 ноября в 09:30');
-  assert.equal(formatRun(run, 'en', 'Europe/Moscow'), 'November 20 at 09:30');
-  assert.equal(formatRun(run, 'de', 'Europe/Moscow'), '20. November um 09:30');
+  const W = '\u2002'; // широкий пробел между датой и временем
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow'), '20 ноября' + W + '09:30');
+  assert.equal(formatRun(run, 'en', 'Europe/Moscow'), 'November 20' + W + '09:30');
+  assert.equal(formatRun(run, 'de', 'Europe/Moscow'), '20. November' + W + '09:30');
   const ru = formatRun(run, 'ru', 'Europe/Moscow');
   assert.ok(!ru.includes('пт'), 'день недели не выводится');
   assert.ok(!ru.includes('нояб.'), 'месяц полный');
+  assert.ok(!/\sв\s/.test(ru), 'предлог «в» не ставится');
   assert.ok(!/,\s*\d{2}:\d{2}/.test(ru), 'перед временем нет запятой');
 });
 
 test('формат строки задаётся флагом run-format', () => {
   const run = new Date('2026-11-20T06:30:00Z');
-  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'weekday day month time'), 'пт, 20 ноября в 09:30');
+  assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'weekday day month time'), 'пт, 20 ноября\u200209:30');
   assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'time'), '09:30');
   assert.equal(formatRun(run, 'ru', 'Europe/Moscow', 'day month'), '20 ноября');
   assert.equal(formatRun(run, 'ru', 'Europe/Moscow', ['day', 'month']), '20 ноября');
@@ -102,6 +104,13 @@ test('строка запуска: широкий пробел между дат
   assert.ok(!zh.includes(' 日'), 'суффикс 日 не отделяется пробелом');
 
   const ru = formatRun(run, 'ru', 'Europe/Moscow');
-  assert.ok(!ru.includes('\u2002'), 'в ru есть слово-связка «в», широкий пробел не нужен');
-  assert.match(ru, /20 ноября в \d{2}:\d{2}$/);
+  assert.equal(ru, '20 ноября\u200209:30');
+  assert.ok(!ru.includes(' в '), 'предлог «в» выброшен в любом языке');
+});
+
+test('перечисление запусков разделяется запятой', () => {
+  const runs = nextRuns('0 9 * * *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
+  const line = runs.map((run) => formatRun(run, 'ru', 'Europe/Moscow')).join(', ');
+  assert.equal(line, '18 ноября\u200209:00, 19 ноября\u200209:00, 20 ноября\u200209:00');
+  assert.equal(line.split(', ').length, 3);
 });
