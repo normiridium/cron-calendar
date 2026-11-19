@@ -36,6 +36,9 @@
   }
   .wide { flex: 1 1 640px; min-width: 0; }
   output { display: block; margin-top: 10px; font-family: ui-monospace, monospace; font-size: 13px; color: #6f7681; }
+  .lang { display: block; margin-bottom: 10px; font-size: 13px; color: #8b929c; }
+  .lang select { margin-left: 6px; padding: 2px 6px; font: inherit; color: #d7dbe0; background: #1a1e24;
+                 border: 1px solid #33383f; border-radius: 4px; }
   button.reset { margin-left: 8px; padding: 1px 8px; font: inherit; font-size: 12px; color: #b9bfc7;
                  background: #1a1e24; border: 1px solid #33383f; border-radius: 4px; cursor: pointer; }
 </style>
@@ -89,6 +92,35 @@
       названия, а фразы — английские.</div>
   </div>
 
+  <h2>Список ближайших запусков: next-runs</h2>
+  <div class="row">
+    <div class="wide">
+      <cron-editor id="runs" next-runs="6" timezone="Europe/Moscow" value="30 9 * * 1-5"></cron-editor>
+      <output id="out-runs">запуски считаются в Europe/Moscow</output>
+    </div>
+    <div class="hint"><code>next-runs="6"</code> — сколько строк показать (по умолчанию 5),
+      <code>timezone</code> — IANA-зона для расчёта и подписи. Правило дня как в cron:
+      если ограничены и день месяца, и день недели — достаточно совпадения любого.</div>
+  </div>
+
+  <h2>Языки пакета: ru, en, de, fr, es, it, pt, pl, tr, zh</h2>
+  <div class="row">
+    <div class="wide">
+      <label class="lang">язык:
+        <select id="lang-switch">
+          <option value="ru" selected>ru</option><option value="en">en</option><option value="de">de</option>
+          <option value="fr">fr</option><option value="es">es</option><option value="it">it</option>
+          <option value="pt">pt</option><option value="pl">pl</option><option value="tr">tr</option>
+          <option value="zh">zh</option>
+        </select>
+      </label>
+      <cron-editor id="i18n" next-runs="3" timezone="Europe/Moscow" week-start="auto" value="0 9 31 2,7 *"></cron-editor>
+      <output id="out-i18n">переключи язык — подписи и подсказки меняются, названия месяцев приходят из Intl</output>
+    </div>
+    <div class="hint">Переводятся подписи полей, подсказки и заголовок списка запусков;
+      месяцы и дни недели — из <code>Intl</code>, поэтому работают и для языков вне пакета.</div>
+  </div>
+
   <h2>Перечисление на ничьей — флаг компонента</h2>
   <div class="row">
     <div class="wide">
@@ -110,6 +142,13 @@
     });
   };
   ['sun', 'mon', 'warn'].forEach(bind);
+
+  document.getElementById('lang-switch').addEventListener('change', (ev) => {
+    const el = document.getElementById('i18n');
+    el.locale = ev.target.value;
+    document.getElementById('out-i18n').textContent = 'locale → ' + el.locale +
+      ' | месяцы: ' + Array.from(el.shadowRoot.querySelectorAll('.block')[3].querySelectorAll('.cell')).map((c) => c.textContent.trim()).join(' ');
+  });
 
   document.querySelectorAll('button.reset').forEach((btn) => {
     btn.addEventListener('click', () => {

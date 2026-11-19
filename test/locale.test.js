@@ -30,7 +30,8 @@ test('незнакомый язык всё равно получает назв�
   const de = intlNames('de', 'month', 'short');
   assert.ok(Array.isArray(de) && de.length === 12);
   assert.equal(de[0], 'Jan');
-  assert.equal(resolveLang('de-DE'), 'en', 'фразы — английские, названия — свои');
+  assert.equal(resolveLang('de-DE'), 'de', 'язык из пакета определяется по префиксу');
+  assert.equal(resolveLang('sv-SE'), 'en', 'язык вне пакета: названия свои, фразы английские');
 });
 
 test('первый день недели по CLDR', () => {
@@ -40,7 +41,7 @@ test('первый день недели по CLDR', () => {
 });
 
 test('словари фраз полны и совпадают по набору ключей', () => {
-  assert.deepEqual(LOCALES.sort(), ['en', 'ru']);
+  assert.deepEqual(LOCALES.slice().sort(), ['de', 'en', 'es', 'fr', 'it', 'pl', 'pt', 'ru', 'tr', 'zh']);
   const required = ['fields', 'expressionAria', 'cronAria', 'dayDead', 'dayPartial', 'monthDead', 'monthPartial'];
   LOCALES.forEach((lang) => {
     required.forEach((key) => {
