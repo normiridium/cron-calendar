@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { nextRuns, zoneOffsetMs, formatRun, normalizeRunFormat } = require('../src/cron-editor.js');
+const { nextRuns, zoneOffsetMs, formatRun, normalizeRunFormat, RUN_SEPARATOR } = require('../src/cron-editor.js');
 
 const at = (iso) => new Date(iso);
 const fmt = (list, timeZone) => list.map((date) => {
@@ -108,9 +108,10 @@ test('строка запуска: широкий пробел между дат
   assert.ok(!ru.includes(' в '), 'предлог «в» выброшен в любом языке');
 });
 
-test('перечисление запусков разделяется запятой', () => {
+test('перечисление запусков: запятая и широкий пробел', () => {
   const runs = nextRuns('0 9 * * *', { from: new Date('2026-11-18T05:00:00Z'), count: 3, timeZone: 'Europe/Moscow' });
-  const line = runs.map((run) => formatRun(run, 'ru', 'Europe/Moscow')).join(', ');
-  assert.equal(line, '18 ноября\u200209:00, 19 ноября\u200209:00, 20 ноября\u200209:00');
-  assert.equal(line.split(', ').length, 3);
+  assert.equal(RUN_SEPARATOR, ',\u2002', 'после запятой — широкий пробел, а не обычный');
+  const line = runs.map((run) => formatRun(run, 'ru', 'Europe/Moscow')).join(RUN_SEPARATOR);
+  assert.equal(line, '18 ноября\u200209:00,\u200219 ноября\u200209:00,\u200220 ноября\u200209:00');
+  assert.equal(line.split(RUN_SEPARATOR).length, 3);
 });
