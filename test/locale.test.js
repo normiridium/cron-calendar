@@ -53,6 +53,25 @@ test('словари фраз полны и совпадают по набору
   });
 });
 
+test('регистр подписей и заголовков по правилам языка', () => {
+  // ru/fr/es/it/pt/pl/tr — строчные подписи полей, de — существительные с заглавной,
+  // en — заглавная в каждом слове подписи, zh — без регистра
+  assert.equal(MESSAGES.ru.fields.min, 'минута');
+  assert.equal(MESSAGES.en.fields.min, 'Minute');
+  assert.equal(MESSAGES.en.fields.dow, 'Day of week');
+  assert.equal(MESSAGES.de.fields.min, 'Minute');
+  assert.equal(MESSAGES.fr.fields.min, 'minute');
+  assert.equal(MESSAGES.zh.fields.min, '分钟');
+  // заголовок списка запусков всегда с заглавной и с двоеточием
+  LOCALES.forEach((lang) => {
+    const title = MESSAGES[lang].nextRunsTitle;
+    assert.ok(title, `${lang}: нет заголовка`);
+    const first = Array.from(title)[0];
+    assert.equal(first, first.toUpperCase(), `${lang}: заголовок должен начинаться с заглавной — ${title}`);
+    assert.match(title, /[:：]\s*$/, `${lang}: заголовок должен кончаться двоеточием — ${title}`);
+  });
+});
+
 test('фразы локалей подставляют значения', () => {
   assert.match(MESSAGES.ru.dayDead(31), /31-го числа/);
   assert.match(MESSAGES.en.dayDead(31), /31st/);
