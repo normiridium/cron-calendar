@@ -685,6 +685,58 @@
     return out;
   }
 
+  // formatRun печатает дату запуска: полное название месяца и БЕЗ запятой
+  // между датой и временем. Порядок частей оставляем такой, как решил Intl
+  // (в ru/en/de он разный), правим только разделитель в стыке дата→время.
+  function formatRun(date, locale, timeZone) {
+    let formatter;
+    try {
+      const options = {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+      };
+      if (timeZone) {
+        options.timeZone = timeZone;
+      }
+      formatter = new Intl.DateTimeFormat(locale, options);
+    } catch (error) {
+      formatter = null;
+    }
+    if (!formatter) {
+      return date.toISOString();
+    }
+    const parts = formatter.formatToParts(date);
+    const dateTypes = ['weekday', 'year', 'month', 'day'];
+    const timeTypes = ['hour', 'minute', 'second'];
+    let lastDate = -1;
+    let firstTime = -1;
+    parts.forEach(function (part, index) {
+      if (dateTypes.indexOf(part.type) !== -1) {
+        lastDate = index;
+      }
+      if (firstTime === -1 && timeTypes.indexOf(part.type) !== -1) {
+        firstTime = index;
+      }
+    });
+    const out = [];
+    parts.forEach(function (part, index) {
+      let value = part.value;
+      if (part.type === 'literal' && lastDate !== -1 && firstTime !== -1 && index > lastDate && index < firstTime) {
+        // В стыке «дата → время» убираем запятую, остальные разделители живут.
+        value = value.replace(/,/g, ' ');
+        if (value.trim() === '') {
+          value = ' ';
+        }
+      }
+      out.push(value);
+    });
+    return out.join('').replace(/\s{2,}/g, ' ').trim();
+  }
+
   function splitExpression(expr, count) {
     const parts = String(expr == null ? '' : expr).trim().split(/\s+/).filter(Boolean);
     while (parts.length < count) {
@@ -1433,22 +1485,13 @@
         return;
       }
 
-      let formatter = null;
-      try {
-        const options = { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
-        if (timeZone) {
-          options.timeZone = timeZone;
-        }
-        formatter = new Intl.DateTimeFormat(this.locale, options);
-      } catch (error) {
-        formatter = null;
-      }
+      const locale = this.locale;
 
       const list = document.createElement('ol');
       list.className = 'next-list';
       runs.forEach(function (run) {
         const item = document.createElement('li');
-        item.textContent = formatter ? formatter.format(run) : run.toISOString();
+        item.textContent = formatRun(run, locale, timeZone);
         list.appendChild(item);
       });
       box.appendChild(list);
@@ -1496,6 +1539,7 @@
       LOCALES: Object.keys(MESSAGES),
       MESSAGES: MESSAGES,
       nextRuns: nextRuns,
+      formatRun: formatRun,
       zoneOffsetMs: zoneOffsetMs,
       intlNames: intlNames,
       intlWeekStart: intlWeekStart,

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { nextRuns, zoneOffsetMs } = require('../src/cron-editor.js');
+const { nextRuns, zoneOffsetMs, formatRun } = require('../src/cron-editor.js');
 
 const at = (iso) => new Date(iso);
 const fmt = (list, timeZone) => list.map((date) => {
@@ -63,4 +63,18 @@ test('смещение часового пояса считается через
 test('пустое выражение и неизвестный токен не дают запусков', () => {
   assert.deepEqual(nextRuns('', { count: 2 }), []);
   assert.deepEqual(nextRuns('0 0 JAN * *', { count: 2 }), []);
+});
+
+test('строка запуска: полное название месяца и без запятой перед временем', () => {
+  const run = new Date('2026-11-20T06:30:00Z'); // пятница, 09:30 МСК
+  const ru = formatRun(run, 'ru', 'Europe/Moscow');
+  const en = formatRun(run, 'en', 'Europe/Moscow');
+  assert.equal(ru, 'пт, 20 ноября в 09:30');
+  assert.equal(en, 'Fri, November 20 at 09:30');
+  [ru, en].forEach((text) => {
+    assert.ok(!text.includes('нояб.'), 'месяц полный, без сокращения');
+    assert.ok(!/,\s*\d{2}:\d{2}/.test(text), 'перед временем нет запятой');
+    assert.match(text, /\d{2}:\d{2}$/);
+  });
+  assert.equal(formatRun(run, 'de', 'Europe/Moscow'), 'Fr., 20. November um 09:30');
 });
