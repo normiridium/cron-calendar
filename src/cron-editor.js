@@ -725,16 +725,19 @@
     const out = [];
     parts.forEach(function (part, index) {
       let value = part.value;
-      if (part.type === 'literal' && lastDate !== -1 && firstTime !== -1 && index > lastDate && index < firstTime) {
-        // В стыке «дата → время» убираем запятую, остальные разделители живут.
-        value = value.replace(/,/g, ' ');
-        if (value.trim() === '') {
-          value = ' ';
-        }
+      const inGap = part.type === 'literal' && lastDate !== -1 && firstTime !== -1 && index > lastDate && index < firstTime;
+      if (inGap) {
+        // Стык «дата → время»: запятая не нужна. Если Intl оставил здесь только
+        // разделитель, ставим широкий пробел (U+2002, en space) — по правилам
+        // набора дата и время отделяются им, а день и месяц — обычным пробелом.
+        const words = value.replace(/,/g, ' ').trim();
+        value = words === '' ? '\u2002' : ' ' + words + ' ';
       }
       out.push(value);
     });
-    return out.join('').replace(/\s{2,}/g, ' ').trim();
+    const text = out.join('');
+    // Сжимаем только ОБЫЧНЫЕ пробелы: широкий U+2002 не трогаем.
+    return text.replace(/ {2,}/g, ' ').replace(/^\s+|\s+$/g, '');
   }
 
   function splitExpression(expr, count) {

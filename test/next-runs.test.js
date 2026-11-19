@@ -78,3 +78,17 @@ test('строка запуска: полное название месяца и
   });
   assert.equal(formatRun(run, 'de', 'Europe/Moscow'), 'Fr., 20. November um 09:30');
 });
+
+test('строка запуска: широкий пробел между датой и временем, обычный — между днём и месяцем', () => {
+  const run = new Date('2026-11-20T06:30:00Z');
+  // pl/es/tr/zh: Intl не ставит слово-связку — там широкий пробел U+2002
+  ['pl', 'es', 'tr', 'zh'].forEach((locale) => {
+    const text = formatRun(run, locale, 'Europe/Moscow');
+    assert.ok(text.includes('\u2002'), `${locale}: ожидался широкий пробел, получено ${JSON.stringify(text)}`);
+    assert.ok(!/,\s*\d{2}:\d{2}$/.test(text.replace(/\u2002/g, ' ')), `${locale}: запятая перед временем`);
+  });
+  // ru/de/en: связка словом («в», «um», «at») — обычные пробелы, месяц отделён обычным
+  const ru = formatRun(run, 'ru', 'Europe/Moscow');
+  assert.ok(!ru.includes('\u2002'));
+  assert.match(ru, /20 ноября в \d{2}:\d{2}$/);
+});
