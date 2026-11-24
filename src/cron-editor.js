@@ -873,7 +873,7 @@
     '.token.error{color:var(--cron-error,#dc3545)}',
     /* mode="popover": сам тег без рамки, сетка живёт в выпадающей панели. */
     ':host([mode="popover"]){border:none;padding:0;display:block;position:relative}',
-    '.trigger{width:100%;box-sizing:border-box;padding:.375rem .75rem;font-family:var(--cron-mono,ui-monospace,SFMono-Regular,monospace);font-size:.85rem;color:inherit;background:var(--cron-input-bg,#000);border:1px solid var(--cron-cell-border,#495057);border-radius:.375rem}',
+    '.trigger{width:100%;box-sizing:border-box;padding:.375rem .75rem;font-family:var(--cron-mono,ui-monospace,SFMono-Regular,monospace);font-size:var(--cron-input-font-size,1rem);line-height:1.5;min-height:calc(1.5em + .75rem + 2px);color:inherit;background:var(--cron-input-bg,#000);border:1px solid var(--cron-input-border,var(--bs-secondary,#6c757d));border-radius:var(--cron-input-radius,.5rem)}',
     '.trigger:focus{outline:none;border-color:var(--cron-focus,#0d6efd)}',
     /* Панель шире своего инпута: сетке из 12 колонок нужно больше места.
        Ширина по содержимому, но не больше окна; если упирается в правый край —
@@ -1212,6 +1212,11 @@
     }
 
     _emit() {
+      // Поле в шапке компонента показывает то же значение, что и сетка:
+      // без этой строки правки в панели не доходили до видимого инпута.
+      if (this._trigger) {
+        this._trigger.value = this.value;
+      }
       this.dispatchEvent(new CustomEvent('change', {
         bubbles: true,
         composed: true,
@@ -1252,9 +1257,13 @@
         trigger.spellcheck = false;
         trigger.autocomplete = 'off';
         trigger.setAttribute('aria-label', this.dict.cronAria);
+        // Подсказку можно задать атрибутом placeholder — иначе маска cron.
+        trigger.placeholder = this.getAttribute('placeholder') || '* * * * *';
         trigger.addEventListener('focus', this._openPanel.bind(this));
         trigger.addEventListener('click', this._openPanel.bind(this));
-        trigger.addEventListener('change', function () {
+        // Никакой привязки к потере фокуса: значение применяется сразу при
+        // вводе, Enter лишь фиксирует и закрывает панель.
+        trigger.addEventListener('input', function () {
           this.value = trigger.value;
         }.bind(this));
         trigger.addEventListener('keydown', function (ev) {
@@ -1313,7 +1322,12 @@
         self._paintNextRuns();
         self._emit();
       });
-      token.addEventListener('blur', function () {
+      // Раньше значение нормализовалось по потере фокуса — из-за этого правка
+      // «применялась» только когда уводишь курсор. Теперь только по Enter.
+      token.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') {
+          return;
+        }
         delete block.dataset.userToken;
         const parsed = parseToken(token.value, cfg);
         if (parsed.values.length === 0 && !parsed.star) {
@@ -1532,7 +1546,7 @@
     }
 
     static get observedAttributes() {
-      return ['locale', 'week-start', 'mode', 'fields', 'enumeration', 'next-runs', 'timezone', 'run-format'];
+      return ['locale', 'week-start', 'mode', 'fields', 'enumeration', 'next-runs', 'timezone', 'run-format', 'placeholder'];
     }
 
     attributeChangedCallback(name, previous, next) {
@@ -1563,7 +1577,9 @@
       if (!this._built) {
         return;
       }
-      const host = this._root || this.shadowRoot;
+      // В режиме popover «Следующие запуски» — часть выпадающей панели,
+      // а не отдельный блок под полем: иначе он растягивает страницу.
+      const host = (this.mode === 'popover' && this._panel) ? this._panel : (this._root || this.shadowRoot);
       const count = this.nextRuns;
       if (!count) {
         if (this._nextBox) {
@@ -1571,6 +1587,11 @@
           this._nextBox = null;
         }
         return;
+      }
+      // Панель могла пересобраться — блок переезжает вместе с ней.
+      if (this._nextBox && this._nextBox.parentElement !== host) {
+        this._nextBox.remove();
+        this._nextBox = null;
       }
       const dict = this.dict;
       if (!this._nextBox) {
